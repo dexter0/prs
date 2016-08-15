@@ -1,0 +1,103 @@
+# Portable Runtime System (PRS)
+# Copyright (C) 2016  Alexandre Tremblay
+# 
+# This file is part of PRS.
+# 
+# PRS is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+# 
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+# portableruntimesystem@gmail.com
+
+
+.PHONY: all clean run env
+
+# Define the target executable's complete path
+EXETARGET := $(BINDIR)/$(TARGET)$(EXE_EXT)
+
+# Add the target name into the defines
+DEFINES += MAKE_TARGET=\"$(TARGET)\"
+
+# Simple rules to create the obj and bin directories
+$(OBJDIR):
+	$(E)$(V)$(MKDIR) $(call native_path,$@)
+$(BINDIR):
+	$(E)$(V)$(MKDIR) $(call native_path,$@)
+
+# Collect all the source files directories so that we can generate rules for
+# each of them
+uniq = $(if $1,$(firstword $1) $(call uniq,$(filter-out $(firstword $1),$1)))
+SOURCEDIRS = $(call uniq,$(dir $(SOURCES)))
+
+__OBJS = $(patsubst %.c,%.o,$(SOURCES))
+_OBJS = $(call native_underpath,$(__OBJS))
+OBJS += $(addprefix $(OBJDIR)/,$(subst /,_,$(_OBJS)))
+
+define define_cc_rule
+$(OBJDIR)/$(2)%.o: $(1)%.c
+	$$(ECHO) Compiling C $$<...
+	$$(call cc, $$<, $$@)
+endef
+
+$(eval $(call define_cc_rule,,))
+$(foreach sourcedir,$(SOURCEDIRS),$(eval $(call define_cc_rule,$(sourcedir),$(call native_underpath,$(subst /,_,$(sourcedir))))))
+
+# Executable linking
+$(EXETARGET): $(OBJS)
+	$(ECHO) Linking $@...
+	$(call ld,$^,$@)
+
+# Environment display
+VARIABLES = \
+	AS \
+	BINDIR \
+	CC \
+	CCFLAGS \
+	CPP \
+	CPPFLAGS \
+	COMPILER \
+	CONFIG \
+	DEBUG \
+	EXETARGET \
+	EXE_EXT \
+	GCCDIR \
+	LD \
+	LDFLAGS \
+	LIBDIRS \
+	LIBS \
+	MAKEDIR \
+	MAKEFILE_LIST \
+	MAKEFILE.TOP \
+	OBJDIR \
+	OBJS \
+	PLATFORM \
+	SOURCEDIRS \
+	SOURCES \
+	V \
+	VERBOSE
+
+env:
+	$(foreach var,$(VARIABLES),$(ECHO) $(var)=$($(var))$(CMDSEP))
+
+run:
+	$(ECHO) Running $(EXETARGET)...
+	$(V)$(EXETARGET)
+
+all: $(OBJDIR)
+all: $(BINDIR)
+all: $(EXETARGET) 
+
+clean:
+	$(ECHO) Cleaning $(call native_path,$(BINDIR))
+	$(E)$(V)$(RMDIR) $(call native_path,$(BINDIR))
+	$(ECHO) Cleaning $(call native_path,$(OBJDIR))
+	$(E)$(V)$(RMDIR) $(call native_path,$(OBJDIR))

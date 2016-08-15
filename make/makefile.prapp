@@ -1,0 +1,54 @@
+# Portable Runtime System (PRS)
+# Copyright (C) 2016  Alexandre Tremblay
+# 
+# This file is part of PRS.
+# 
+# PRS is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+# 
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+# portableruntimesystem@gmail.com
+
+# Abolute PRS path
+PRSDIR = $(realpath $(MAKEDIR)/../prs)
+
+# PRS uses its own C runtime code
+SOURCES += $(PRSDIR)/crt/crt0.c
+
+# Use the latest C version
+ifdef C99
+        CFLAGS += --std=c99
+else
+        CFLAGS += --std=c11
+endif
+
+# Enable all warnings
+CFLAGS += -Wall
+
+# Note: -ffreestanding prevents printf from working with floating point
+LDFLAGS += -nostartfiles -Wl,-e_pr_entrypoint
+
+# Define PR_APP to import pr symbols
+DEFINES += PR_APP
+
+ifeq ($(OS), windows)
+	# Windows relocation
+	LDFLAGS += -Wl,--dynamicbase,--export-all-symbols
+else # windows
+	# Position independent code for Linux
+	CFLAGS += -fPIC
+endif # windows
+
+# Import symbols from the prs executable
+PRS_BINDIR = $(PRSDIR)/$(BINDIR)
+LIBDIRS += $(PRS_BINDIR)
+LIBS += prs

@@ -1,0 +1,86 @@
+# Portable Runtime System (PRS)
+# Copyright (C) 2016  Alexandre Tremblay
+# 
+# This file is part of PRS.
+# 
+# PRS is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+# 
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+# portableruntimesystem@gmail.com
+
+COMPILER := gcc
+
+# Test for Windows use (MinGW)
+ifeq ($(OS), windows)
+	ifdef MINGW_HOME
+		GCCDIR := $(MINGW_HOME)/bin/
+	else
+		ifdef MINGWDIR
+			GCCDIR := $(MINGWDIR)/bin/
+		else
+			ifneq (,$(wildcard C:/MinGW))
+				GCCDIR := C:/MinGW/bin/
+			endif
+		endif
+	endif
+else
+	GCCDIR :=
+	_CFLAGS += -mno-red-zone # Disable red zone on Linux, as it prevents the signal handler from adding a stack frame
+endif
+
+# Define some tools
+CC := $(call native_path,$(GCCDIR)gcc$(EXE_EXT))
+CPP := $(call native_path,$(GCCDIR)g++$(EXE_EXT))
+AS := $(call native_path,$(GCCDIR)as$(EXE_EXT))
+LD := $(call native_path,$(GCCDIR)g++$(EXE_EXT))
+
+# Set the platform according to GCC's dumpmachine
+PLATFORM := $(shell $(CC) -dumpmachine)
+
+# Add some GCC flags according to the chosen configuration
+ifeq ($(CONFIG), debug)
+	DEFINES += DEBUG=1
+	_CFLAGS += -g
+else
+	_CFLAGS += -O3
+	ifdef SYMBOLS
+		_CFLAGS += -g
+	endif
+endif
+
+ifdef GENERATE_ASM
+	_CFLAGS += -S
+endif
+
+# Add prefixes to well-known variables
+_INCLUDEDIRS = $(addprefix -I,$(INCLUDEDIRS))
+_DEFINES = $(addprefix -D,$(DEFINES))
+
+# Define flags
+CCFLAGS += $(_CFLAGS) $(CFLAGS) $(_DEFINES) $(_INCLUDEDIRS)
+CPPFLAGS += $(_CFLAGS) $(CFLAGS) $(_DEFINES) $(_INCLUDEDIRS)
+
+# Define library flags
+_LIBS = $(addprefix -l,$(LIBS))
+_LIBDIRS = $(addprefix -L,$(LIBDIRS))
+LDFLAGS += $(_LIBDIRS) $(_LIBS)
+
+# Define shared library flags
+SLFLAGS += -shared
+
+# Define macros for compiling objects
+cc = $(V)$(CC) $(CCFLAGS) -c -o $(call native_path,$(2)) $(call native_path,$(1))
+cpp = $(V)$(CPP) $(CPPFLAGS) -c -o $(call native_path,$(2)) $(call native_path,$(1))
+as = $(V)$(AS) $(ASFLAGS) -o $(call native_path,$(2)) $(call native_path,$(1))
+ld = $(V)$(LD) -o $(call native_path,$(2)) $(call native_path,$(1)) $(LDFLAGS)
+objcopy = $(V)$(OBJCOPY) $(call native_path,$(1)) $(call native_path,$(2))

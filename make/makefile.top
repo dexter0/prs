@@ -1,0 +1,62 @@
+# Portable Runtime System (PRS)
+# Copyright (C) 2016  Alexandre Tremblay
+# 
+# This file is part of PRS.
+# 
+# PRS is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+# 
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# 
+# portableruntimesystem@gmail.com
+
+# Get the path of the "make" directory
+MAKEFILE.TOP := $(realpath $(lastword $(MAKEFILE_LIST)))
+MAKEDIR := $(patsubst %/,%,$(dir $(MAKEFILE.TOP)))
+
+# Get the build configuration
+ifdef DEBUG
+	include $(MAKEDIR)/makefile.debug
+else # DEBUG
+	include $(MAKEDIR)/makefile.release
+endif # DEBUG
+
+# Define a function to handle path conversions on Windows
+# It will have no effect on other platforms
+native_path = $1
+native_underpath = $1
+
+# Makefile symbol to put at the beginning of commands to ignore errors
+E := -
+
+# Auto-detect the operating system
+ifdef ComSpec
+	OS := windows
+else # ComSpec
+	UNAME := $(shell uname)
+	ifeq ($(UNAME), Linux)
+		OS := linux
+	else # Linux
+		ifeq ($(UNAME), FreeBSD)
+			OS := freebsd
+		else # FreeBSD
+			$(error Unknown OS: $(UNAME))
+		endif # FreeBSD
+	endif # Linux
+endif # ComSpec
+include $(MAKEDIR)/makefile.$(OS)
+
+# Define some directories
+OBJDIR = obj/$(CONFIG)/$(PLATFORM)
+BINDIR = bin/$(CONFIG)/$(PLATFORM)
+
+# We only support GCC for now
+include $(MAKEDIR)/makefile.gcc
